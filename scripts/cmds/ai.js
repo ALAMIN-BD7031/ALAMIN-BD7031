@@ -1,135 +1,66 @@
-const axios = require("axios");
-const mongoose = require("mongoose");
-
-// MongoDB schema (auto create if not exists)
-const ShipuMemory = mongoose.models.ShipuMemory || mongoose.model("ShipuMemory", new mongoose.Schema({
-  userID: String,
-  memory: String,
-  personality: { type: String, default: "default" }
-}));
-
-const apiUrl = "https://shipu-ai.onrender.com/api.php?action=";
-
-module.exports = {
-  config: {
-    name: "ai",
-    aliases: ["ai", "Ai"],
-    version: "1.2",
-    author: "Chitron Bhattacharjee",
-    countDown: 1,
-    role: 0,
-    shortDescription: {
-      en: "Talk with ai (with memory and personality)"
-    },
-    longDescription: {
-      en: "Chat with powered AI. Continues chat with memory, supports personality modes."
-    },
-    category: "ai",
-    guide: {
-      en: "-ai [message] or reply to Ai\n+ai setpersonality [funny|formal|sarcastic]\nNo-prefix supported too"
-    }
-  },
-
-  onStart: async function ({ api, event, args, message }) {
-    const uid = event.senderID;
-    const input = args.join(" ");
-
-    if (!input) return message.reply("📩 | Please provide a message or reply to a message.");
-
-    // Personality setter
-    if (args[0]?.toLowerCase() === "setpersonality") {
-      const mode = args[1]?.toLowerCase();
-      if (!mode) return message.reply("⚙️ | Usage: +ai setpersonality [mode]");
-      await ShipuMemory.findOneAndUpdate({ userID: uid }, { personality: mode }, { upsert: true });
-      return message.reply(`✅ | Personality set to **${mode}**`);
-    }
-
-    handleConversation(api, event, input);
-  },
-
-  onReply: async function ({ api, event }) {
-    const userInput = event.body?.toLowerCase();
-    if (!userInput) return;
-    handleConversation(api, event, userInput);
-  },
-
-  onChat: async function ({ api, event }) {
-    const body = event.body?.toLowerCase();
-    if (!body) return;
-
-    const prefixes = ["ai"];
-    const matched = prefixes.find(p => body.startsWith(p));
-    if (!matched) return;
-
-    const content = body.slice(matched.length).trim();
-    if (!content) {
-      const prompts = [
-        "👋 Hey there! How can I help you today ?",
-        ""
-      ];
-      const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
-      return api.sendMessage(randomPrompt, event.threadID, (err, info) => {
-        if (!info?.messageID) return;
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName: "ai",
-          type: "reply",
-          author: event.senderID
-        });
-      }, event.messageID);
-    }
-
-    handleConversation(api, event, content);
-  }
-};
-
-// 🔁 Handle user conversation
-async function handleConversation(api, event, userInput) {
-  const uid = event.senderID;
-  let memory = "";
-  let personality = "default";
-
-  // 🔍 Try to load memory/personality
-  try {
-    const userData = await ShipuMemory.findOne({ userID: uid });
-    if (userData) {
-      memory = userData.memory || "";
-      personality = userData.personality || "default";
-    }
-  } catch (err) {
-    console.log("⚠️ MongoDB not connected or memory fetch failed.");
-  }
-
-  try {
-    const query = memory ? `${memory}\nUser: ${userInput}` : userInput;
-    const fullQuery = `[${personality} mode]\n${query}`;
-
-    const res = await axios.get(apiUrl + encodeURIComponent(fullQuery));
-    const { botReply, status } = res.data;
-
-    if (status !== "success") {
-      return api.sendMessage("❌ | Ai couldn't reply. Try again later.", event.threadID, event.messageID);
-    }
-
-    // Save new memory
-    try {
-      const newMemory = `User: ${userInput}\nAi: ${botReply}`;
-      await ShipuMemory.findOneAndUpdate({ userID: uid }, { memory: newMemory }, { upsert: true });
-    } catch (e) {
-      console.log("⚠️ Failed to save memory.");
-    }
-
-    const styled = `╭────────────╮\n ▄ 🧠 𝗔𝗜 𝘀𝗮𝗶𝗱:\n▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n\n\n${botReply}\n\n──────────────\n▄ 📩 𝗬𝗼𝘂: ${userInput}\n▄▄▄▄▄▄▄▄▄▄▄▄▄\n╔══════════╗\n║ 👤𝗠𝗼𝗱𝗲: ${personality}\n║ 🖊️𝗔𝘂𝘁𝗵𝗼𝗿: Chitron\n║ Bhattacharjee\n╚══════════╝`;
-
-    api.sendMessage(styled, event.threadID, (err, info) => {
-      if (!info?.messageID) return;
-      global.GoatBot.onReply.set(info.messageID, {
-        commandName: "ai",
-        type: "reply",
-        author: event.senderID
-      });
-    }, event.messageID);
-  } catch (err) {
-    console.error(err);
-    api.sendMessage("⚠️ | who are you baby 😘.", event.threadID, event.messageID);
-  }
+const { getPrefix, getStreamFromURL, uploadImgbb } = global.utils;
+async function ai({ message: m, event: e, args: a, usersData: u }) {
+  var p = [`${await getPrefix(e.threadID)}${this.config.name}`,
+`${this.config.name}`
+/*"ai"
+*you can add more prefix here
+*/
+]; 
+ if (p.some(b => a[0].toLowerCase().startsWith(b))) {
+try {      
+let prompt = "";
+if (e.type === "message_reply" && e.messageReply.attachments && e.messageReply.attachments[0]?.type === "photo") {
+ const b = await uploadImgbb(e.messageReply.attachments[0].url);
+prompt = a.slice(1).join(" ") + ' ' + b.image.url;
+} else {
+ prompt = a.slice(1).join(" ");
 }
+ var __ = [{ id: e.senderID, tag: await u.getName(e.senderID) }];
+ const r = await require("axios").post(`https://test-ai-ihc6.onrender.com/api`, {
+  prompt: prompt,
+ apikey: "GayKey-oWHmMb1t8ASljhpgSSUI",
+  name: __[0]['tag'],
+ id: __[0]['id'],
+ });
+var _ = r.data.result.replace(/{name}/g, __[0]['tag']).replace(/{pn}/g, p[0]);
+ if (r.data.av) {
+ if (Array.isArray(r.data.av)) {
+ const avs = r.data.av.map(url => getStreamFromURL(url));
+ const avss = await Promise.all(avs);
+  m.reply({
+ body: _,
+ mentions: __,
+ attachment: avss
+ });
+ } else {
+ m.reply({
+ body: _,
+ mentions: __,
+attachment: await getStreamFromURL(r.data.av)
+  });
+  }
+  } else {
+m.reply({
+body: _,
+mentions: __
+  });
+  }
+  } catch (error) {
+ m.reply("Error " + error);
+ }
+ }
+}
+module.exports = {
+config: {
+ name: "ai",
+aliases: ["Ai"],
+version: 1.6,
+author: "ALAMIN",
+role: 0,
+ shortDescription: "An AI that can do various tasks",
+ guide: "{pn} <query>",
+ category: "AI"
+ },
+ onStart: function() {},
+ onChat: ai
+};
