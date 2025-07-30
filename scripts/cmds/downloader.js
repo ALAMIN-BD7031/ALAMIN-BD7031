@@ -50,8 +50,14 @@ module.exports = {
     const tempDir = path.join(__dirname, "..", "temp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
+    // Send "please wait" message
+    let waitMessageID = null;
+    api.sendMessage("𝐏𝐥𝐳 𝐰𝐚𝐢𝐭 𝐛𝐚𝐛𝐲 💘", threadID, (err, info) => {
+      waitMessageID = info?.messageID;
+    });
+
     try {
-      const { data } = await axios.get(apiUrl);
+      const { data } = await axios.get(apiUrl, { timeout: 10000 });
       const result = data?.result || {};
 
       let videoUrl = "";
@@ -94,7 +100,7 @@ module.exports = {
           break;
       }
 
-      if (!videoUrl) return;
+      if (!videoUrl) throw new Error("No video URL found");
 
       const filePath = path.join(tempDir, `video_${Date.now()}.mp4`);
       const response = await axios({ method: "GET", url: videoUrl, responseType: "stream" });
@@ -109,6 +115,8 @@ module.exports = {
 
       api.setMessageReaction("✅", messageID, () => {}, true);
 
+      if (waitMessageID) api.unsendMessage(waitMessageID);
+
       await api.sendMessage(
         {
           body: `${title}`,
@@ -119,8 +127,12 @@ module.exports = {
       );
 
     } catch (err) {
-      console.error("Facebook Downloader Error:", err.message);
+      console.error(`[${platform.toUpperCase()} Error]:`, err.message);
       api.setMessageReaction("❌", messageID, () => {}, true);
+
+      if (waitMessageID) api.unsendMessage(waitMessageID);
+
+      return api.sendMessage("❌ Sorry baby, couldn't get the video.\nMaybe the link is private, expired or broken.", threadID);
     }
   },
 };
