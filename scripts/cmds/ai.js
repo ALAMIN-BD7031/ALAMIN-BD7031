@@ -53,9 +53,9 @@ mentions: __
 module.exports = {
 config: {
  name: "ai",
-aliases: ["Ai"],
+aliases: ["Tom"],
 version: 1.6,
-author: "ALAMIN",
+author: "Nsc pro",
 role: 0,
  shortDescription: "An AI that can do various tasks",
  guide: "{pn} <query>",
