@@ -19,7 +19,7 @@ module.exports = {
   },
 
   onChat: async function ({ api, event }) {
-    const { threadID, messageID, body } = event;
+    const { threadID, messageID, body, senderID } = event;
     if (!body) return;
 
     const linkMatch = body.match(/(https?:\/\/[^\s]+)/);
@@ -50,14 +50,8 @@ module.exports = {
     const tempDir = path.join(__dirname, "..", "temp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-    // Send "please wait" message
-    let waitMessageID = null;
-    api.sendMessage("𝐏𝐥𝐳 𝐰𝐚𝐢𝐭 𝐛𝐚𝐛𝐲 💘", threadID, (err, info) => {
-      waitMessageID = info?.messageID;
-    });
-
     try {
-      const { data } = await axios.get(apiUrl, { timeout: 10000 });
+      const { data } = await axios.get(apiUrl);
       const result = data?.result || {};
 
       let videoUrl = "";
@@ -100,7 +94,10 @@ module.exports = {
           break;
       }
 
-      if (!videoUrl) throw new Error("No video URL found");
+      if (!videoUrl) {
+        api.setMessageReaction("⚠️", messageID, () => {}, true);
+        return api.sendMessage("❌ Sorry, couldn't find a downloadable video from the link. Try another link.", threadID, messageID);
+      }
 
       const filePath = path.join(tempDir, `video_${Date.now()}.mp4`);
       const response = await axios({ method: "GET", url: videoUrl, responseType: "stream" });
@@ -115,8 +112,6 @@ module.exports = {
 
       api.setMessageReaction("✅", messageID, () => {}, true);
 
-      if (waitMessageID) api.unsendMessage(waitMessageID);
-
       await api.sendMessage(
         {
           body: `${title}`,
@@ -127,12 +122,9 @@ module.exports = {
       );
 
     } catch (err) {
-      console.error(`[${platform.toUpperCase()} Error]:`, err.message);
+      console.error("Downloader Error:", err.message);
       api.setMessageReaction("❌", messageID, () => {}, true);
-
-      if (waitMessageID) api.unsendMessage(waitMessageID);
-
-      return api.sendMessage("❌ Sorry baby, couldn't get the video.\nMaybe the link is private, expired or broken.", threadID);
+      return api.sendMessage("❌ Error downloading video. Try again later.", threadID, messageID);
     }
   },
 };
