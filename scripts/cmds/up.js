@@ -28,7 +28,7 @@ aliases: ["up"],
       
       const uptimeString = `${hours}Hrs ${minutes}min ${seconds}sec`;
       
-      api.sendMessage(`»「ALAMIN UPTIME」«\n\n⏰ | Running Time:\n❯» [${uptimeString}]\n\n🚸 | Total Users: ${allUsers.length}\n\n📊 | Total Threads: ${allThreads.length}`, event.threadID);
+      api.sendMessage(`»「𝗔𝗟𝗔𝗠𝗜𝗡•𝗨𝗣𝗧𝗜𝗠𝗘」«\n\n⏰ | Running Time:\n❯» [${uptimeString}]\n\n🚸 | Total Users: ${allUsers.length}\n\n📊 | Total Threads: ${allThreads.length}`, event.threadID);
     } catch (error) {
       console.error(error);
       api.sendMessage("An error occurred while retrieving data.", event.threadID);
